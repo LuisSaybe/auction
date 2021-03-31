@@ -1,0 +1,16 @@
+name: builder master
+on:
+  push:
+    branches:
+      - master
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: python3
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.x"
+      - name: Install
+        run: pip install -r requirements.txt
