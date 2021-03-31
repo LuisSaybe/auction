@@ -1,2 +1,4 @@
 tortoise-orm[asyncpg]
 aiohttp
+jsonschema
+pydantic
