@@ -9,6 +9,8 @@ services:
   api:
     image: luissaybe/auction
     command: ["python3", "-u", "-m", "auction"]
+    environment:
+      - DB_URL=postgres://postgres:postgres@db:5432/postgres
     volumes:
       - ./:/tmp/project
     ports:

@@ -1,3 +1,4 @@
+import os
 import asyncio
 from aiohttp import web
 from tortoise import Tortoise, fields, run_async
@@ -12,7 +13,7 @@ from auction.model.Bid import Bid
 async def run():
     await asyncio.sleep(3)
     await Tortoise.init(
-        db_url="postgres://postgres:postgres@db:5432/postgres",
+        db_url=os.getenv('DB_URL'),
         modules={'models': ['auction.model.Item', 'auction.model.Bid']}
     )
     await Tortoise.generate_schemas()
