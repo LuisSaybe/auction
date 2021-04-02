@@ -1,0 +1,4 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    timeout: 1200s
+    args: ["build", "."]
