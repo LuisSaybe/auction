@@ -1,6 +1,5 @@
 import aiohttp
-
-from auction.model.Item import Item
+import datetime
 from auction.utility.validate import validate_schema
 
 
@@ -13,6 +12,12 @@ from auction.utility.validate import validate_schema
 })
 async def post_item(request):
     body = await request.json()
-    item = Item(auction_end_date=body['auction_end_date'])
-    await item.save()
-    return aiohttp.web.json_response({'id': item.id})
+    pool = request.app['connection_pool']
+    end_date = datetime.datetime.utcfromtimestamp(body['auction_end_date'])
+
+    async with pool.acquire() as connection:
+        result = await connection.fetchval('''
+            INSERT INTO item(auction_end_date) VALUES ($1) RETURNING id
+        ''', end_date)
+
+        return aiohttp.web.json_response(result)

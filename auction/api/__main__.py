@@ -1,24 +1,17 @@
 import os
 import asyncio
 from aiohttp import web
-from tortoise import Tortoise, fields, run_async
+import asyncpg
 
 from auction.route.bid.post import post_bid
 from auction.route.item.get import get_item
 from auction.route.item.post import post_item
-from auction.model.Item import Item
-from auction.model.Bid import Bid
+from auction.utility.db import getConnectionPool
 
 
-async def run():
-    await asyncio.sleep(3)
-    await Tortoise.init(
-        db_url=os.getenv('DB_URL'),
-        modules={'models': ['auction.model.Item', 'auction.model.Bid']}
-    )
-    await Tortoise.generate_schemas()
-
+async def main():
     app = web.Application()
+    app['connection_pool'] = await getConnectionPool()
     app.add_routes([
         web.get('/item/{id}', get_item),
         web.post('/item/{id}/bid', post_bid),
@@ -29,10 +22,9 @@ async def run():
     site = web.TCPSite(runner, '0.0.0.0', 9000)
     await site.start()
 
-    print('Server started on 0.0.0.0:9000')
+    print('API listening on 0.0.0.:9000')
 
     while True:
         await asyncio.sleep(3600)
 
-if __name__ == "__main__":
-    run_async(run())
+app = asyncio.get_event_loop().run_until_complete(main())

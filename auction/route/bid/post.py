@@ -1,10 +1,6 @@
 import aiohttp
 
 from auction.utility.validate import validate_schema
-from tortoise.contrib.pydantic import pydantic_model_creator
-
-from auction.model.Bid import Bid
-from auction.model.Item import Item
 
 
 @validate_schema({
@@ -17,17 +13,24 @@ from auction.model.Item import Item
 })
 async def post_bid(request):
     item_id = int(request.match_info.get('id'))
-    searched_items = await Item.filter(id=item_id)
-
-    if len(searched_items) == 0:
-        raise aiohttp.web.HTTPNotFound()
-
     body = await request.json()
-    items_with_greater_bid = await Bid.filter(item__id=item_id, amount__gte=body['amount']).count()
+    pool = request.app['connection_pool']
 
-    if items_with_greater_bid > 0:
-        raise aiohttp.web.HTTPBadRequest(text='bid amount too low')
+    async with pool.acquire() as connection:
+        highest_bid_amount = await connection.fetchval('''
+            SELECT bid.amount
+            FROM bid
+            WHERE bid.item_id = $1
+            ORDER BY bid.amount DESC
+            LIMIT 1
+        ''', item_id)
 
-    bid = Bid(amount=body['amount'], item_id=item_id, user_id=body['user_id'])
-    await bid.save()
-    return aiohttp.web.Response()
+        if highest_bid_amount and highest_bid_amount >= body['amount']:
+            raise aiohttp.web.HTTPBadRequest(
+                text=f'bid amount must be greater than {highest_bid_amount}')
+
+        await connection.execute('''
+            INSERT INTO bid(amount, user_id, item_id) VALUES ($1, $2, $3)
+        ''', body['amount'], body['user_id'], item_id)
+
+        return aiohttp.web.Response()

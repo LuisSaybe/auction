@@ -1,15 +1,27 @@
 import aiohttp
-from tortoise.contrib.pydantic import pydantic_model_creator
-from auction.model.Item import Item
 
 
 async def get_item(request):
-    id = request.match_info.get('id')
-    searched_item = await Item.get(id=id)
+    id = int(request.match_info.get('id'))
+    pool = request.app['connection_pool']
 
-    if not searched_item:
-        raise aiohttp.web.HTTPNotFound()
+    async with pool.acquire() as connection:
+        item_record = await connection.fetchrow('''
+            SELECT *
+            FROM item
+            WHERE item.id = $1
+        ''', id)
+        bids = await connection.fetch('''
+            SELECT *
+            FROM bid
+            WHERE bid.item_id = $1
+        ''', id)
 
-    item_pydantic = pydantic_model_creator(Item)
-    p = await item_pydantic.from_tortoise_orm(searched_item)
-    return aiohttp.web.Response(body=p.json(), headers={'Content-Type': 'application/json'})
+        if not item_record:
+            raise aiohttp.web.HTTPNotFound()
+
+        result = dict(item_record)
+        result['bids'] = list(map(dict, bids))
+        result['auction_end_date'] = item_record['auction_end_date'].timestamp() * \
+            1000
+        return aiohttp.web.json_response(result)

@@ -4,14 +4,27 @@ services:
   db:
     image: postgres:13.2
     restart: always
+    volumes:
+      - ./db:/docker-entrypoint-initdb.d
     environment:
       POSTGRES_PASSWORD: postgres
   api:
+    command: ["python3", "-u", "-m", "auction.api"]
     image: luissaybe/auction
-    command: ["python3", "-u", "-m", "auction"]
     environment:
       - DB_URL=postgres://postgres:postgres@db:5432/postgres
     volumes:
       - ./:/tmp/project
     ports:
       - "9000:9000"
+    depends_on:
+      - db
+  cron_certify_item:
+    command: ["python3", "-u", "-m", "auction.cron.certify_item"]
+    image: luissaybe/auction
+    environment:
+      - DB_URL=postgres://postgres:postgres@db:5432/postgres
+    volumes:
+      - ./:/tmp/project
+    depends_on:
+      - db
