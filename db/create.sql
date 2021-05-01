@@ -1,6 +1,7 @@
 CREATE TABLE item (
     id SERIAL PRIMARY KEY,
-    auction_end_date TIMESTAMP NOT NULL
+    auction_end_date TIMESTAMP NOT NULL,
+    highest_bidder INT
 );
 
 CREATE TABLE bid (

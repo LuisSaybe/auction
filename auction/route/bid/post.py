@@ -1,4 +1,5 @@
 import aiohttp
+import time
 
 from auction.utility.validate import validate_schema
 
@@ -17,6 +18,20 @@ async def post_bid(request):
     pool = request.app['connection_pool']
 
     async with pool.acquire() as connection:
+        item_record = await connection.fetchrow('''
+            SELECT *
+            FROM item
+            WHERE item.id = $1
+            LIMIT 1
+        ''', item_id)
+
+        if not item_record:
+            raise aiohttp.web.HTTPNotFound()
+
+        if item_record['auction_end_date'].timestamp() < time.time():
+            raise aiohttp.web.HTTPBadRequest(
+                text=f'Auction has expired')
+
         highest_bid_amount = await connection.fetchval('''
             SELECT bid.amount
             FROM bid
