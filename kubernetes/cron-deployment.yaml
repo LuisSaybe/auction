@@ -1,9 +1,9 @@
-apiVersion: batch/v1
+apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
   name: auction-cron-job
 spec:
-  schedule: "* * * * *"
+  schedule: "*/2 * * * *"
   jobTemplate:
     spec:
       template:
@@ -13,4 +13,10 @@ spec:
               image: luissaybe/auction
               imagePullPolicy: Always
               command: ["python3", "-u", "-m", "auction.cron.certify_item"]
+              env:
+                - name: DB_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-cluster-secret
+                      key: db_url
           restartPolicy: OnFailure
