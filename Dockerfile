@@ -7,7 +7,7 @@ WORKDIR $SOURCE_DIRECTORY
 
 RUN dnf upgrade -y && \
     dnf group install -y "Development Tools" && \
-    dnf install -y sqlite-devel openssl-devel zlib-devel libffi libffi-devel wget && \
+    dnf install -y postgresql sqlite-devel openssl-devel zlib-devel libffi libffi-devel wget && \
     wget https://www.python.org/ftp/python/$PYTHON_VERSION/Python-$PYTHON_VERSION.tar.xz && \
     tar -xJf Python-$PYTHON_VERSION.tar.xz && \
     cd Python-$PYTHON_VERSION && \

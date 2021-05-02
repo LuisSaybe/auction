@@ -18,6 +18,7 @@ spec:
         - name: auction-api
           command: ["python3", "-u", "-m", "auction.api"]
           image: luissaybe/auction
+          imagePullPolicy: Always
           ports:
             - containerPort: 9000
           env:

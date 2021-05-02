@@ -1,0 +1,16 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: auction-cron-job
+spec:
+  schedule: "* * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: auction-cron-job
+              image: luissaybe/auction
+              imagePullPolicy: Always
+              command: ["python3", "-u", "-m", "auction.cron.certify_item"]
+          restartPolicy: OnFailure

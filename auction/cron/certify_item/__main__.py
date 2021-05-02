@@ -4,7 +4,7 @@ from auction.utility.db import getConnectionPool
 
 async def process_next_item(connection):
     def getNextItem():
-        return await connection.fetchrow('''
+        return connection.fetchrow('''
             SELECT   item.*
             FROM     item
             WHERE    item.auction_end_date < now()
@@ -13,7 +13,7 @@ async def process_next_item(connection):
             LIMIT    1
         ''')
 
-    item = getNextItem()
+    item = await getNextItem()
 
     while item:
         highest_bid = await connection.fetchrow('''
@@ -31,7 +31,7 @@ async def process_next_item(connection):
             WHERE item.id = $1
         ''', item['id'], highest_bidder)
 
-        item = getNextItem()
+        item = await getNextItem()
 
 
 async def main():

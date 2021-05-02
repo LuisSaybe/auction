@@ -27,4 +27,4 @@ async def main():
     while True:
         await asyncio.sleep(3600)
 
-app = asyncio.get_event_loop().run_until_complete(main())
+asyncio.get_event_loop().run_until_complete(main())
