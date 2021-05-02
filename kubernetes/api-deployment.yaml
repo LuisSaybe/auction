@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auction-api-deployment
+  labels:
+    app: auction-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: auction-api
+  template:
+    metadata:
+      labels:
+        app: auction-api
+    spec:
+      containers:
+        - name: auction-api
+          command: ["python3", "-u", "-m", "auction.api"]
+          image: luissaybe/auction
+          ports:
+            - containerPort: 9000
+          env:
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-cluster-secret
+                  key: db_url
