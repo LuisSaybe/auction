@@ -1,6 +1,6 @@
 # An Auctioning System
 
-This project aims to create a simple auctioning system deployable to [Digital Ocean's Kubernetes](https://www.digitalocean.com/products/kubernetes) backed by [postgresql](https://www.postgresql.org) and [aiohttp](https://github.com/aio-libs/aiohttp)
+This project aims to create an auctioning system deployable to [EKS](https://aws.amazon.com/eks/) on AWS backed by [mongo](https://www.mongodb.com/) and [aiohttp](https://github.com/aio-libs/aiohttp)
 
 ## HTTP Endpoints
 
@@ -18,8 +18,10 @@ This project aims to create a simple auctioning system deployable to [Digital Oc
 
 - the id of the created item
 
-```
-6
+```json
+{
+  "$oid": "61622c8ed1a52eba00ea05dd"
+}
 ```
 
 ### POST /item/{id}/bid
@@ -27,13 +29,13 @@ This project aims to create a simple auctioning system deployable to [Digital Oc
 **Example Body**
 
 - **amount** bid amount as integer
-- **user_id** the positive integer id of the bidding user
+- **user_id** the id of the bidding user
 
 - a bid can not be placed if it is equal to or less than any other existing bid for an item
 - a bid can not be placed after `auction_end_date`
 
 ```json
-{ "amount": 43, "user_id": 2 }
+{ "amount": 43, "user_id": "6162257cbe78eb43c6e95d4b" }
 ```
 
 ### GET /item/{id}
@@ -45,22 +47,12 @@ This project aims to create a simple auctioning system deployable to [Digital Oc
 
 ```json
 {
-  "id": 6,
-  "auction_end_date": 1619981640.0,
-  "highest_bidder": null,
-  "bids": [
-    {
-      "id": 1,
-      "amount": 43,
-      "item_id": 6,
-      "user_id": 2
-    }
-  ]
+  "_id": {
+    "$oid": "6162257cbe78eb43c6e95d4b"
+  },
+  "auction_end_date": {
+    "$date": 233800913000
+  },
+  "bids": []
 }
 ```
-
-### Determining the Highest Bidder
-
-When the `auction_end_date` is in the past and its `highest_bidder` is `null`, an item will become eligible to be processed by the cron job defined in the python module `auction/cron/certify_item`. This cron job runs every 2 minutes and writes to the `highest_bidder` field for each item. If no `highest_bidder` can be found, `-1` is written to this field.
-
-It is not needed to run a cron job to write to `highest_bidder` since each succesful write to call to `POST /item/{id}/bid` can determine the highest_bidder, even without the need for the database field `item.highest_bidder`. This project also aims to also show how `kind: CronJob` can be used in `kubernetes` and represent other additional transactions which can be run after an auction has ended. A messaging queue can also be used to represent these steps.

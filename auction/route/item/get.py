@@ -1,26 +1,15 @@
 import aiohttp
-
+from bson import json_util, ObjectId
 
 async def get_item(request):
-    item_id = int(request.match_info.get('id'))
-    pool = request.app['connection_pool']
+    item_id = ObjectId(request.match_info.get('id'))
+    client = request.app['mongo']
+    item = client.auction.item.find_one({"_id": item_id})
 
-    async with pool.acquire() as connection:
-        item_record = await connection.fetchrow('''
-            SELECT *
-            FROM item
-            WHERE item.id = $1
-        ''', item_id)
-        bids = await connection.fetch('''
-            SELECT *
-            FROM bid
-            WHERE bid.item_id = $1
-        ''', item_id)
+    if not item:
+        raise aiohttp.web.HTTPNotFound()
 
-        if not item_record:
-            raise aiohttp.web.HTTPNotFound()
-
-        result = dict(item_record)
-        result['bids'] = list(map(dict, bids))
-        result['auction_end_date'] = item_record['auction_end_date'].timestamp()
-        return aiohttp.web.json_response(result)
+    return aiohttp.web.Response(
+        text=json_util.dumps(item),
+        content_type='application/json'
+    )

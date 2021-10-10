@@ -1,51 +1,41 @@
 import aiohttp
 import time
+from bson import ObjectId
 
 from auction.utility.validate import validate_schema
-
 
 @validate_schema({
     "type": "object",
     "properties": {
         "amount": {"type": "number", "exclusiveMinimum": 0},
-        "user_id": {"type": "number"},
+        "user_id": {"type": "string"},
     },
     "required": ["amount", "user_id"]
 })
 async def post_bid(request):
-    item_id = int(request.match_info.get('id'))
+    item_id = ObjectId(request.match_info.get('id'))
     body = await request.json()
-    pool = request.app['connection_pool']
+    client = request.app['mongo']
+    item = client.auction.item.find_one({"_id": item_id})
 
-    async with pool.acquire() as connection:
-        item_record = await connection.fetchrow('''
-            SELECT *
-            FROM item
-            WHERE item.id = $1
-            LIMIT 1
-        ''', item_id)
+    if not item:
+        raise aiohttp.web.HTTPNotFound()
 
-        if not item_record:
-            raise aiohttp.web.HTTPNotFound()
+    if item['auction_end_date'].timestamp() < time.time():
+        raise aiohttp.web.HTTPBadRequest(text=f'Auction has expired')
 
-        if item_record['auction_end_date'].timestamp() < time.time():
-            raise aiohttp.web.HTTPBadRequest(
-                text=f'Auction has expired')
+    sorted_bids = sorted(item['bids'], key=lambda item: item['amount'])
 
-        highest_bid_amount = await connection.fetchval('''
-            SELECT bid.amount
-            FROM bid
-            WHERE bid.item_id = $1
-            ORDER BY bid.amount DESC
-            LIMIT 1
-        ''', item_id)
+    if len(sorted_bids) > 0 and sorted_bids[-1]['amount'] >= body['amount']:
+        raise aiohttp.web.HTTPBadRequest(text=f"bid amount must be greater than {sorted_bids[-1]['amount']}")
 
-        if highest_bid_amount and highest_bid_amount >= body['amount']:
-            raise aiohttp.web.HTTPBadRequest(
-                text=f'bid amount must be greater than {highest_bid_amount}')
+    next_bid = { 'user_id': ObjectId(body['user_id']), 'amount': body['amount'] }
 
-        await connection.execute('''
-            INSERT INTO bid(amount, user_id, item_id) VALUES ($1, $2, $3)
-        ''', body['amount'], body['user_id'], item_id)
+    client.auction.item.update_one(
+        {"_id" : item_id},
+        {
+            "$push": {"bids": next_bid}
+        }
+    )
 
-        return aiohttp.web.Response()
+    return aiohttp.web.Response()

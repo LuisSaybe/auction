@@ -1,44 +1,29 @@
+import os
 import asyncio
-from auction.utility.db import getConnectionPool
+from datetime import datetime
 
+from pymongo import MongoClient
 
-async def process_next_item(connection):
-    def getNextItem():
-        return connection.fetchrow('''
-            SELECT   item.*
-            FROM     item
-            WHERE    item.auction_end_date < now()
-            AND      item.highest_bidder IS NULL
-            ORDER BY item.auction_end_date ASC
-            LIMIT    1
-        ''')
-
-    item = await getNextItem()
+def main():
+    client = MongoClient(os.environ['DB_URL'])
+    search = {
+        "auction_end_date": { "$lt": datetime.now() },
+        "sold_to": { "$exists": False }
+    }
+    item = client.auction.item.find_one(search)
 
     while item:
-        highest_bid = await connection.fetchrow('''
-            SELECT *
-            FROM bid
-            WHERE bid.item_id = $1
-            ORDER BY bid.amount DESC
-        ''', item['id'])
+        bids = sorted(item['bids'], key=lambda item: item['amount'])
+        highest_bid = bids[-1]if len(bids) > 0 else None
+        client.auction.item.update_one(
+            {"_id" : item['_id']},
+            {
+                "$set": {'sold_to': highest_bid['user_id'] }
+            }
+        )
 
-        highest_bidder = highest_bid['user_id'] if highest_bid else -1
-
-        await connection.execute('''
-            UPDATE item SET
-            highest_bidder = $2
-            WHERE item.id = $1
-        ''', item['id'], highest_bidder)
-
-        item = await getNextItem()
+        item = client.auction.item.find_one(search)
 
 
-async def main():
-    pool = await getConnectionPool()
-
-    async with pool.acquire() as connection:
-        await process_next_item(connection)
-
-
-asyncio.get_event_loop().run_until_complete(main())
+if __name__ == '__main__':
+    main()

@@ -2,7 +2,6 @@ import functools
 import aiohttp
 from jsonschema import validate
 
-
 def validate_schema(schema):
     def result(func):
         @functools.wraps(func)

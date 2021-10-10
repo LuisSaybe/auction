@@ -1,7 +1,8 @@
 import aiohttp
 import datetime
-from auction.utility.validate import validate_schema
+from bson import json_util
 
+from auction.utility.validate import validate_schema
 
 @validate_schema({
     "type": "object",
@@ -12,12 +13,11 @@ from auction.utility.validate import validate_schema
 })
 async def post_item(request):
     body = await request.json()
-    pool = request.app['connection_pool']
-    end_date = datetime.datetime.utcfromtimestamp(body['auction_end_date'])
+    client = request.app['mongo']
+    auction_end_date = datetime.datetime.utcfromtimestamp(body['auction_end_date'])
+    object_id = client.auction.item.insert({"auction_end_date": auction_end_date, 'bids': []})
 
-    async with pool.acquire() as connection:
-        result = await connection.fetchval('''
-            INSERT INTO item(auction_end_date) VALUES ($1) RETURNING id
-        ''', end_date)
-
-        return aiohttp.web.json_response(result)
+    return aiohttp.web.Response(
+        text=json_util.dumps(object_id),
+        content_type='application/json'
+    )
